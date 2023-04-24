@@ -1,0 +1,7 @@
+\begin{tabular}{lrrrrrrrr}
+\toprule
+{} &  Base &    A &    B &    C &    D &    E &  A $\land$ B &  C $\land$ D \\
+\midrule
+GTSharedFeature &   2.0 &  1.0 &  2.0 &  1.0 &  2.0 &  1.0 &      2.0 &     -0.0 \\
+\bottomrule
+\end{tabular}

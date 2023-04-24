@@ -1,0 +1,7 @@
+\begin{tabular}{lrrrrrr}
+\toprule
+{} &  Base &    A &    B &    C &    D &  C $\land$ D \\
+\midrule
+GTMulticollinearity &   4.0 &  3.0 &  0.0 &  1.0 &  2.0 &      0.0 \\
+\bottomrule
+\end{tabular}
