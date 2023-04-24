@@ -13,9 +13,106 @@ import statsmodels.api as sm
 import copy
 
 
+def xz_string_to_tuple(file_name:str):
+    #takes string containing xz filename and transform it to a 3 elements tuple (compression, extreme, threads)
+    result = list()
+    file_name = file_name.split("/")[-1]
+    for chars in file_name:
+        if chars.isnumeric():
+            result.append(int(chars))
+    return tuple(result)
+
+def parse_zip_files(path:Path):
+    #Used to meassure the mean of the time spend of for each zip file containing multiple time reports
+    #path: Folder containing mutliple zips
+    
+    #Maps config (compression, extreme, threads) to time it took to run xz
+    feature_config_to_time = dict()
+    for zip in path.iterdir():
+        xz_features = xz_string_to_tuple(str(zip))
+        xz_result = TimeReportAggregate(zip)
+        feature_config_to_time[xz_features] = py.mean(xz_result.measurements_wall_clock_time)
+    return feature_config_to_time
+
 class multible_linear_reagression:
+    
+        #Method by Christian Kaltenecker#
+    def apply_iterative_vif(self, model_to_check: List[List[str]], nfp: str, log_path: str = None, revision=None) -> List[List[str]]:
+        """
+        Applies an iterative VIF analysis. In each iteration, an additional term is included to the VIF analysis.
+        Whenever the threshold if Infinity, the new term is removed. The removed term and the terms it is
+        conflicting with is printed on the console.
+        :param model_to_check: the model to check. It contains in each line a term of the performance-influence model
+        :param nfp: the nfp to investigate
+        :param log_path: the path to the log file where the conflicts are written
+        :return: A reduced model where all conflicting model are already removed.
+        """
+        if len(model_to_check) < 2:
+            print("The length of the given model is too short (less than 2)")
+            exit(-1)
+        log_file = None
+        if log_path is not None:
+            log_file = open(log_path, 'w')
+
+        current_model = [model_to_check[0]]
+        current_model_string = ['_'.join(model_to_check[0])]
+
+        if revision is None:
+            data = self.configurations
+        else:
+            data = self.configurations[self.configurations['revision'] == revision]
+
+        
+
+        dataframe_for_vif = pd.DataFrame(data=data, columns=[model_to_check[0][0], nfp])
+        for i in range(1, len(model_to_check)):
+            current_model.append(model_to_check[i])
+            current_model_string.append('__'.join(model_to_check[i]))
+            # Append to the dataframe the needed information
+            # The term could consist of one or more terms; therefore, we have to split it
+            dataframe_for_vif[current_model_string[-1]] = self.configurations[model_to_check[i][0]]
+            for j in range(1, len(model_to_check[i])):
+                dataframe_for_vif[current_model_string[-1]] = dataframe_for_vif[current_model_string[-1]].astype(int) \
+                                                            * self.configurations[model_to_check[i][j]] \
+                                                                .astype(int)
+            # Construct the matrix for the VIF analysis
+            y, X = dmatrices('performance ~ ' + '+'.join(current_model_string), data=dataframe_for_vif,
+                            return_type='dataframe')
+            # Run the analysis
+            vif = pd.DataFrame()
+            vif['variable'] = X.columns
+            vif['VIF'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+            # Check if all VIFs are below infinity
+            # If not, check with which terms the given term interferes.
+            conflicting_terms = []
+            vif_value = 0
+            for index, row in vif.iterrows():
+                # Values that are infinity mean that the variance is too high
+                if (py.isinf(row['VIF']) or py.isnan(row['VIF'])) and row['variable'] != "Intercept":
+                    conflicting_terms.append(row['variable'])
+                    vif_value = row['VIF']
+            if len(conflicting_terms) > 0:
+                print(f"Removing term {current_model_string[-1]} since it is conflicting with {str(conflicting_terms)}")
+                if log_file is not None:
+                    log_file.write(f"{current_model_string[-1]} ({vif_value}): {str(conflicting_terms)}\n")
+                current_model = current_model[:-1]
+                current_model_string = current_model_string[:-1]
+            # Note: There is currently no support for numeric features
+        if log_file is not None:
+            log_file.close()
+
+        return current_model
+        
      
     def generate_table(self, row_names:List, column_names:List, opt:List=[]):
+        """
+        This function generates the tables for the xz results
+
+        Args:
+            row_names (List): row names
+            column_names (List): column names
+            opt (List, optional): If Extreme is on. Defaults to [].
+        """
         
         data = [[0] * len(column_names) for _ in range(len(row_names))]
         
@@ -51,6 +148,7 @@ class multible_linear_reagression:
         print(result_table.to_latex())
             
         data_similarity = copy.deepcopy(data)
+        #Hard coded WB data since we have only 5 values i did not implement a functionality to read that from a file
         if not opt:
             wb_data = [36.231, 0.095, 0.073, 0.072, 0.074]
             for i in range(5):
@@ -67,7 +165,9 @@ class multible_linear_reagression:
         print(result_table_similarity.to_latex())
 
     def generate_model(self):
-        
+        """generates mapping from configuration id to the features that are active for that id
+
+        """
         feature_name = [[] for _ in range(105)]
         self.name_inverse = dict()
         for compression_level in range(10):
@@ -96,9 +196,14 @@ class multible_linear_reagression:
         return feature_name
     
     def __init__(self, feature_config_to_time:dict):
-        #Takes Dict containing feature selection mapping configuration -> time_spent
+        """Builds the performance influence model for XZ black-box using linear regression and prints a latex file
+        Also calculates the similarity scores
+
+        Args:
+            feature_config_to_time (dict): _description_
+        """
         
-        #feature_name returns the feature/intearaction at given matrix pos
+        
         self.feature_name = self.generate_model()
         
         X = list()
@@ -202,138 +307,7 @@ class multible_linear_reagression:
             #feature_selection[20 + threads] = 1
                                                                   
         return feature_selection
-    
-    def config_to_feature_interactions(self, config:tuple):
-        #Receives a 3 element tuple and returns a list that corresponds to the feature
-        
-        #24 solo features 
-        #8 feature interactions per compression level
-        #feature_selection = [0] * 15
-        feature_selection = [0] * 105
-        
-        compression_level = config[0]
-        extreme = config[1]
-        threads = config[2]
-        
-        
-        #0 is base -> alwads on
-        feature_selection[0] = 1
-        #0-9 => compression
-        feature_selection[compression_level] = 1
-        
-        if extreme:
-            #10-19 => extreme
-            #feature_selection[10] = 1
-            feature_selection[10] = 1
-            
-        #11-14 => Threads
-        if threads:
-            threads = (int(py.log2(config[2])))
-            feature_selection[11 + threads] = 1
-            #feature_selection[20 + threads] = 1
-            
-        
-        #offset of single features
-        offset = 25
-        
-        if extreme:
-            #thread 0 interaction been set already
-            if threads:
-                feature_selection[offset + (compression_level * 8) + 4 + threads] = 1
-        else:
-            if threads:
-                feature_selection[offset + (compression_level * 8) + threads] = 1
-        return feature_selection
 
-
-
-    #Method by Christian Kaltenecker#
-    def apply_iterative_vif(self, model_to_check: List[List[str]], nfp: str, log_path: str = None, revision=None) -> List[List[str]]:
-        """
-        Applies an iterative VIF analysis. In each iteration, an additional term is included to the VIF analysis.
-        Whenever the threshold if Infinity, the new term is removed. The removed term and the terms it is
-        conflicting with is printed on the console.
-        :param model_to_check: the model to check. It contains in each line a term of the performance-influence model
-        :param nfp: the nfp to investigate
-        :param log_path: the path to the log file where the conflicts are written
-        :return: A reduced model where all conflicting model are already removed.
-        """
-        if len(model_to_check) < 2:
-            print("The length of the given model is too short (less than 2)")
-            exit(-1)
-        log_file = None
-        if log_path is not None:
-            log_file = open(log_path, 'w')
-
-        current_model = [model_to_check[0]]
-        current_model_string = ['_'.join(model_to_check[0])]
-
-        if revision is None:
-            data = self.configurations
-        else:
-            data = self.configurations[self.configurations['revision'] == revision]
-
-        
-
-        dataframe_for_vif = pd.DataFrame(data=data, columns=[model_to_check[0][0], nfp])
-        for i in range(1, len(model_to_check)):
-            current_model.append(model_to_check[i])
-            current_model_string.append('__'.join(model_to_check[i]))
-            # Append to the dataframe the needed information
-            # The term could consist of one or more terms; therefore, we have to split it
-            dataframe_for_vif[current_model_string[-1]] = self.configurations[model_to_check[i][0]]
-            for j in range(1, len(model_to_check[i])):
-                dataframe_for_vif[current_model_string[-1]] = dataframe_for_vif[current_model_string[-1]].astype(int) \
-                                                            * self.configurations[model_to_check[i][j]] \
-                                                                .astype(int)
-            # Construct the matrix for the VIF analysis
-            y, X = dmatrices('performance ~ ' + '+'.join(current_model_string), data=dataframe_for_vif,
-                            return_type='dataframe')
-            # Run the analysis
-            vif = pd.DataFrame()
-            vif['variable'] = X.columns
-            vif['VIF'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
-            # Check if all VIFs are below infinity
-            # If not, check with which terms the given term interferes.
-            conflicting_terms = []
-            vif_value = 0
-            for index, row in vif.iterrows():
-                # Values that are infinity mean that the variance is too high
-                if (py.isinf(row['VIF']) or py.isnan(row['VIF'])) and row['variable'] != "Intercept":
-                    conflicting_terms.append(row['variable'])
-                    vif_value = row['VIF']
-            if len(conflicting_terms) > 0:
-                print(f"Removing term {current_model_string[-1]} since it is conflicting with {str(conflicting_terms)}")
-                if log_file is not None:
-                    log_file.write(f"{current_model_string[-1]} ({vif_value}): {str(conflicting_terms)}\n")
-                current_model = current_model[:-1]
-                current_model_string = current_model_string[:-1]
-            # Note: There is currently no support for numeric features
-        if log_file is not None:
-            log_file.close()
-
-        return current_model
-        
-def xz_string_to_tuple(file_name:str):
-    #takes string containing xz filename and transform it to a 3 elements tuple (compression, extreme, threads)
-    result = list()
-    file_name = file_name.split("/")[-1]
-    for chars in file_name:
-        if chars.isnumeric():
-            result.append(int(chars))
-    return tuple(result)
-
-def parse_zip_files(path:Path):
-    #Used to meassure the mean of the time spend of for each zip file containing multiple time reports
-    #path: Folder containing mutliple zips
-    
-    #Maps config (compression, extreme, threads) to time it took to run xz
-    feature_config_to_time = dict()
-    for zip in path.iterdir():
-        xz_features = xz_string_to_tuple(str(zip))
-        xz_result = TimeReportAggregate(zip)
-        feature_config_to_time[xz_features] = py.mean(xz_result.measurements_wall_clock_time)
-    return feature_config_to_time
 
 if __name__ == '__main__':
     #Set Path with the folder location of the results
@@ -344,8 +318,3 @@ if __name__ == '__main__':
     regression_model = multible_linear_reagression(xz_config_to_time)
 
     coefficients = list(regression_model.linear_model.coef_)
-    
-    #intercept = (regression_model.linear_model.intercept_)
-    #print(f"Regression Coefficient of Intercepet: {intercept}")
-    #for i in range(len(coefficients)):
-    #    print(f"Regression Coefficient of {regression_model.feature_name[i]}: {coefficients[i]}")

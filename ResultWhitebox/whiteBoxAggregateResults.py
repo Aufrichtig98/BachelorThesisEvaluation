@@ -5,8 +5,61 @@ from functools import cmp_to_key
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
+def perf_model_feature_xz(predict_to_time):
+    """
+    Builds the performance influence model for xz whitebox, only for 5 features since that are the only features we meassured
 
-def aggregate_all_results(path:Path) -> dict:
+    Args:
+        predict_to_time (_type_): Dictionary containing the configurations as key and as values the time spent for that config
+    """
+
+    config = list(predict_to_time.keys())
+    times = list(predict_to_time.values())
+    
+    base_time = list()
+    base_features = list()
+    for i in range(len(times)):
+        base_time.append(times[i][0])
+        base_features.append([1])
+    threads_time = list()
+    threads_features = list()
+    
+    #for each threats feature
+    for i in range(5):
+        thread_lvl = 0
+        tmp_threads_time = list()
+        tmp_threads_feature = list()
+        if i:
+            thread_lvl = (1 << (i-1))
+        for j in range(len(times)):
+        
+            #checks the last char of config to see if the current thread is on
+            if str(thread_lvl) == config[j][-1]:
+                tmp_threads_time.append(times[j][1])
+                tmp_threads_feature.append([1])
+            else:
+                tmp_threads_time.append(0)
+                tmp_threads_feature.append([0])
+        threads_time.append(tmp_threads_time)
+        threads_features.append(tmp_threads_feature)
+     
+    result_times = [base_time] + threads_time
+    result_features = [base_features] + threads_features
+    
+    for i in range(len(result_times)):
+        regression = LinearRegression().fit(result_features[i], result_times[i])
+        print(round((regression.intercept_ / 1000),ndigits=3))
+        print(round((regression.coef_[0] / 1000), ndigits=3))
+
+
+
+def aggregate_all_results(path:Path):
+    """ 
+    Evaluates results of XZ, generates a performance influence model, and builds a latex table for all configurations
+
+    Args:
+        path (Path): Path to where the results are collected
+    """
     selected_feature = list()
 
     for config_folder in path.iterdir():
@@ -60,64 +113,65 @@ def aggregate_all_results(path:Path) -> dict:
     print(result_aggregated)
     perf_model_feature_xz(config_to_features)
     
-def perf_model_feature_xz(predict_to_time):
     
+def perf_model_feature(predicted_time, else_case = False):
+    """Build a linear regression for the feature we want to inspect
 
-    config = list(predict_to_time.keys())
-    times = list(predict_to_time.values())
-    
-    base_time = list()
-    base_features = list()
-    for i in range(len(times)):
-        base_time.append(times[i][0])
-        base_features.append([1])
-    threads_time = list()
-    threads_features = list()
-    
-    #fer each threats feature
-    for i in range(5):
-        thread_lvl = 0
-        tmp_threads_time = list()
-        tmp_threads_feature = list()
-        if i:
-            thread_lvl = (1 << (i-1))
-        for j in range(len(times)):
+    Args:
+        predicted_time (List): time spent by that feature
+        else_case (bool, optional): Time for 2 indicates that feature is deselected for system Else Clause 
         
-            #checks the last char of config to see if the current thread is on
-            if str(thread_lvl) == config[j][-1]:
-                tmp_threads_time.append(times[j][1])
-                tmp_threads_feature.append([1])
-            else:
-                tmp_threads_time.append(0)
-                tmp_threads_feature.append([0])
-        threads_time.append(tmp_threads_time)
-        threads_features.append(tmp_threads_feature)
-     
-    result_times = [base_time] + threads_time
-    result_features = [base_features] + threads_features
-    
-    for i in range(len(result_times)):
-        regression = LinearRegression().fit(result_features[i], result_times[i])
-        print(round((regression.intercept_ / 1000),ndigits=3))
-        print(round((regression.coef_[0] / 1000), ndigits=3))
+        Defaults to False.
 
-def aggregate_all_results_groundTruth(path:Path) -> dict:
+    Returns:
+        Regression model: Linear Regression for that feature
+    """
+    feature_deactivated = 0
+    if else_case:
+        feature_deactivated = 2.0
+    
+    feature_active = list()
+    for element in predicted_time:
+        if element == feature_deactivated:
+            feature_active.append([0])
+        else:
+            feature_active.append([1])
+     
+    return LinearRegression().fit(feature_active, predicted_time)
+
+
+def aggregate_all_results_groundTruth(path:Path):
+    """
+    This function evaluates the ground truth systems and writes them into a file as latex table.
+    It also builds the influence performance model using multiple linear regression.
+    
+    This function was designed specificly to evaluate the Ground Truth systems and not made for reuse
+
+    Args:
+        path Folder containing ground truth result data_
+
+    """
+    
     selected_feature = list()
 
     for ground_truth in path.iterdir():
+        #Name of the System
         system_name = (str(ground_truth)).split("/")[-1]
 
+        #Features depending which system we look at
         selected_feature = ['Base', 'Base,FeatureA', 'Base,FeatureB', 'Base,FeatureC', 'Base,FeatureD', 
                             'Base,FeatureA,FeatureB' ,'Base,FeatureC,FeatureD']
         if "GTShared" in str(ground_truth):
             selected_feature = ['Base', 'Base,FeatureA', 'Base,FeatureB', 'Base,FeatureC', 'Base,FeatureD', 'Base,FeatureE',
                                 'Base,FeatureA,FeatureB' ,'Base,FeatureC,FeatureD']
-        #Unefficient to repeat this but date we work with is neglible small
+
         
         row_names = list()
         #List with feature_measurements[0] = name of selected features
         features_measurements = list() 
         config_to_features = dict()
+        
+        
         for config_folder in ground_truth.iterdir():
             configuration_options = [x for x in str(config_folder).split("/")[-1].split("_")[1:]]
             feature_folder_name = "trace"
@@ -154,7 +208,7 @@ def aggregate_all_results_groundTruth(path:Path) -> dict:
         result_aggregated = pd.DataFrame(data=features_measurements, columns=column_names, index=row_names).to_latex()
         result_aggregated = result_aggregated.replace("land"," $\land$ ").replace("ReplaceCurlyLeft", "\{").replace("ReplaceCurlyRight", "\}")
         
-        #Calculates the perf model#
+        #Calculates the perf model
         if(system_name == "GTMulticollinearity"):
             print("nothing")
         perf_model = [0]
@@ -178,22 +232,7 @@ def aggregate_all_results_groundTruth(path:Path) -> dict:
         result_aggregated += pd.DataFrame(data=[perf_model], columns=column_names, index=[system_name]).to_latex()
         
         with open("/scratch/messerig/EvaluationScripts/ResultWhitebox/resultsGroundTruth/Latex/" + ground_truth.stem + ".txt", "w") as f:
-            f.write(result_aggregated)
-
-def perf_model_feature(predicted_time, else_case = False):
-    feature_deactivated = 0
-    if else_case:
-        feature_deactivated = 2.0
-    
-    feature_active = list()
-    for element in predicted_time:
-        if element == feature_deactivated:
-            feature_active.append([0])
-        else:
-            feature_active.append([1])
-     
-    return LinearRegression().fit(feature_active, predicted_time)
-            
+            f.write(result_aggregated)            
 
 
 if __name__ == '__main__':

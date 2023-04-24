@@ -3,17 +3,16 @@ from varats.report.tef_report import TEFReport, WorkloadSpecificTEFReportAggrega
 from pathlib import Path
 from os import mkdir
 
-from varats.experiment.experiment_util import (
-    ExperimentHandle,
-    get_varats_result_folder,
-    VersionExperiment,
-    get_default_compile_error_wrapped,
-    get_varats_result_folder, ZippedReportFolder
-)
-from tempfile import TemporaryDirectory
-
 def parse_files_into_tef(file_path:Path, result_path:Path):
-    number_of_files = 0
+    """
+    file_path: Path to the folder that contains the zips with the measuremsts 
+    result_path: Path to the folder where we want to put our results in
+    
+    Function reads in every zip in the folder conatining var trace reports, then aggregates the time spent in each region 
+    and writes the overall time spent in each feature region in a file for the measured config
+    
+    """
+    
     for zip in file_path.iterdir():
         print(zip)
         tef_reports = WorkloadSpecificTEFReportAggregate(zip)
@@ -31,10 +30,9 @@ def parse_files_into_tef(file_path:Path, result_path:Path):
         
 if __name__ == '__main__':
 
+    #file_path path to where the ZIPs with the trace files are located
+    #result_path where we want to put the aggregated time in
     file_path = Path("/scratch/messerig/EvaluationScripts/ResultWhitebox/resultsGroundTruth/results/FPR-TEF-FeaturePerfCSCollection-GTBasic-144cd3143d")
     result_path = Path("/scratch/messerig/EvaluationScripts/ResultWhitebox/resultsGroundTruth/resultsEval/GTBasic")
-    
-    #file_path = Path("/scratch/messerig/EvaluationScripts/ResultWhitebox/testResults/FPR-TEF-FeaturePerfCSCollection-GTSharedFeature-144cd3143d")
-    #result_path = Path("/scratch/messerig/EvaluationScripts/ResultWhitebox/testAccu")
     
     parse_files_into_tef(file_path, result_path)
