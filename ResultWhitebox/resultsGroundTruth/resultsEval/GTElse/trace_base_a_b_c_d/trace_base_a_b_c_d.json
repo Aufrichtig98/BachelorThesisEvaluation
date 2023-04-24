@@ -1,0 +1,57 @@
+{
+    "Base": {
+        "Occurrences": 7.0,
+        "Overall Time": 2000.124,
+        "Mean": 285.732,
+        "Variance": 489853226.1688571,
+        "Standard Deviation": 699.8951536972213
+    },
+    "Base,FeatureA": {
+        "Occurrences": 2.0,
+        "Overall Time": 1000.091,
+        "Mean": 500.0455,
+        "Variance": 250044501.98025,
+        "Standard Deviation": 500.0445
+    },
+    "Base,FeatureB": {
+        "Occurrences": 2.0,
+        "Overall Time": 2000.103,
+        "Mean": 1000.0515,
+        "Variance": 1000099002.45025,
+        "Standard Deviation": 1000.0495
+    },
+    "Base,FeatureC": {
+        "Occurrences": 2.0,
+        "Overall Time": 1000.101,
+        "Mean": 500.0505,
+        "Variance": 250049502.45025,
+        "Standard Deviation": 500.0495
+    },
+    "Base,FeatureD": {
+        "Occurrences": 2.0,
+        "Overall Time": 2000.104,
+        "Mean": 1000.052,
+        "Variance": 1000102002.601,
+        "Standard Deviation": 1000.051
+    },
+    "Base,FeatureA,FeatureB": {
+        "Occurrences": 1.0,
+        "Overall Time": 2000.106,
+        "Mean": 2000.106,
+        "Variance": 0.0,
+        "Standard Deviation": 0.0
+    },
+    "Base,FeatureC,FeatureD": {
+        "Occurrences": 1.0,
+        "Overall Time": 0.021,
+        "Mean": 0.021,
+        "Variance": 0.0,
+        "Standard Deviation": 0.0
+    },
+    "Overall time for all features": {
+        "Time Taken": 10000.650000000001
+    },
+    "Number of Repetitions": {
+        "Repetitions": 30
+    }
+}

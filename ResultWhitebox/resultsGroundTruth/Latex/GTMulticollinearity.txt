@@ -1,0 +1,23 @@
+\begin{tabular}{lrrrrrrr}
+\toprule
+{} &  Base &    A &    B &    C &    D &  A $\land$ B &  C $\land$ D \\
+\midrule
+\{A, B\}       &   2.0 &  1.0 &  2.0 &  0.0 &  0.0 &     2.0 &     0.0 \\
+\{A, B, C\}    &   2.0 &  1.0 &  2.0 &  1.0 &  0.0 &     2.0 &     0.0 \\
+\{A, B, C, D\} &   2.0 &  1.0 &  2.0 &  1.0 &  2.0 &     2.0 &     0.0 \\
+\{A, B, D\}    &   2.0 &  1.0 &  2.0 &  0.0 &  2.0 &     2.0 &     0.0 \\
+\{B\}          &   2.0 &  0.0 &  2.0 &  0.0 &  0.0 &     0.0 &     0.0 \\
+\{B, C\}       &   2.0 &  0.0 &  2.0 &  1.0 &  0.0 &     0.0 &     0.0 \\
+\{B, C, D\}    &   2.0 &  0.0 &  2.0 &  1.0 &  2.0 &     0.0 &     0.0 \\
+\{B, D\}       &   2.0 &  0.0 &  2.0 &  0.0 &  2.0 &     0.0 &     0.0 \\
+\bottomrule
+\end{tabular}
+
+
+\begin{tabular}{lrrrrrrr}
+\toprule
+{} &  Base &    A &    B &    C &    D &  AlandB &  ClandD \\
+\midrule
+GTMulticollinearity &   4.0 &  1.0 &  0.0 &  1.0 &  2.0 &     2.0 &     0.0 \\
+\bottomrule
+\end{tabular}

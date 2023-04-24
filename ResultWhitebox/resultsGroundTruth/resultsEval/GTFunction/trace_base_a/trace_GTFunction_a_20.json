@@ -1,0 +1,1 @@
+{"Base": {"Occurrences": 3, "Overall Time": 2000.131, "Mean": 666.7103333333333, "Variance": 888993336.4095556, "Standard Deviation": 942.8644316175871}, "Base,FeatureA": {"Occurrences": 2, "Overall Time": 1000.101, "Mean": 500.0505, "Variance": 250050502.55025, "Standard Deviation": 500.0505}, "Overall time for all features": {"Time Taken": 3000.232}}
